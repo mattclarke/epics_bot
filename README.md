@@ -24,3 +24,8 @@ if api_call.get('ok'):
         if 'name' in user and user.get('name') == "MY_BOTS_NAME":
             print user.get('id')
 ```
+
+Then run epicsbot.py like so:
+```
+python epicsbot.py
+```
