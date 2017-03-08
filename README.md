@@ -9,7 +9,7 @@ Set environment variables for:
 * "BOT_CHANNEL_ID"
 * "SLACK_BOT_TOKEN"
 
-These values can be obtain from Slack. The "SLACK_BOT_TOKEN" will be assign when you create the bot via Slack's webpage.
+These values can be obtain from Slack. The "SLACK_BOT_TOKEN" will be assigned when you create the bot via your team's Slack webpage.
 
 The other details can be obtained via code, for example the "BOT_ID" can be found like so:
 
