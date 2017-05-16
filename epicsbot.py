@@ -157,8 +157,3 @@ class EpicsBot(object):
                     print('There was an unhandled exception: %s' % err)
         else:
             print("Connection failed. Invalid Slack token or bot ID?")
-
-
-if __name__ == "__main__":
-    bot = EpicsBot()
-    bot.start_bot()
