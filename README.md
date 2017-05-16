@@ -25,7 +25,7 @@ if api_call.get('ok'):
             print user.get('id')
 ```
 
-WARNING: keep your values safe, do not check them into git or display them on a public website.
+**WARNING: keep your values safe, do not check them into git or display them on a public website.**
 
 To run the bot type:
 ```
