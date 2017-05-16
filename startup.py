@@ -1,11 +1,9 @@
-
 import os
 
-
-
-BOT_ID = '
-BOT_CHANNEL_ID = ''
-SLACK_BOT_TOKEN = ''
+# NEVER CHECK IN YOUR REAL VALUES
+BOT_ID = 'YOUR_BOT_ID'
+BOT_CHANNEL_ID = 'YOUR_BOT_CHANNEL_ID'
+SLACK_BOT_TOKEN = 'YOUR_SLACK_BOT_TOKEN'
 
 # Need to tell PyEpics where the ca library is
 os.environ["PYEPICS_LIBCA"] = "/opt/epics/bases/base-3.15.5/lib/linux-x86_64/libca.so"
