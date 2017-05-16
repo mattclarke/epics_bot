@@ -1,19 +1,20 @@
 import os
 import time
-from command_parser import as_string_requested, extract_pv_name, uzhex_requested
+import requests
+from command_parser import CaGetParser, AdGetParser
 from slackclient import SlackClient
 from epics_fetcher import EpicsFetcher, PvNotFoundException
+from ad_to_image import ADConverter
 
-BOT_ID = os.environ.get("BOT_ID")
-BOT_CHANNEL_ID = os.environ.get("BOT_CHANNEL_ID")
+READ_WEBSOCKET_DELAY = 1  # X second delay between reading from firehose
+
 CAGET_COMMAND = "caget "
-# Instantiate Slack
-slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
+AD_COMMAND = "adget "
+HELP_COMMAND = "help"
 
 
 class EpicsBot(object):
-
-    def __init__(self, bot_id=BOT_ID, bot_channel=BOT_CHANNEL_ID):
+    def __init__(self, bot_id, bot_channel, bot_token):
         """
         The constructor.
 
@@ -23,6 +24,8 @@ class EpicsBot(object):
         self.bot_id = bot_id
         self.bot_channel = bot_channel
         self.at_bot = "<@" + bot_id + ">"
+        self.bot_token = bot_token
+        self.slack = SlackClient(bot_token)
 
     def parse_caget_command(self, command):
         """
@@ -31,9 +34,9 @@ class EpicsBot(object):
         :param command: the command received over Slack
         :return: a tuple containing whether a string was requested, the PV name and whether un-hexing was required
         """
-        as_str = as_string_requested(command)
-        name = extract_pv_name(command)
-        as_uzhex = uzhex_requested(command)
+        as_str = CaGetParser.as_string_requested(command)
+        name = CaGetParser.extract_pv_name(command)
+        as_uzhex = CaGetParser.uzhex_requested(command)
         return as_str, name, as_uzhex
 
     def handle_command(self, command, channel, epics_fetcher=EpicsFetcher()):
@@ -43,8 +46,9 @@ class EpicsBot(object):
 
         :param command: the command
         :param channel: the channel the message was sent on
+        :param epics_fetcher: the source of values from EPICS
         """
-        response = "I'm sorry Dave I'm afraid I can't do that. Try 'caget'."
+        response = "I'm sorry Dave I'm afraid I can't do that. Try 'help'"
         if command.startswith(CAGET_COMMAND):
             try:
 
@@ -62,7 +66,40 @@ class EpicsBot(object):
             except Exception as err:
                 response = "Sorry, something went wrong: %s" % err
                 print(response)
+        elif command.startswith(AD_COMMAND):
+            try:
+                prefix = AdGetParser.extract_prefix(command)
+                ans = epics_fetcher.get_ad_image_data(prefix)
+                filepath = ADConverter().convert_to_jpg(ans)
+                self._upload_image(channel, filepath)
+                response = None
+            except Exception as err:
+                response = "Sorry, something went wrong: %s" % err
+                print(response)
+        elif command.startswith(HELP_COMMAND):
+            if "caget" in command:
+                response = "Gets a PV value. For example:```caget SOME:PV:VALUE\ncaget -S SOME:PV:VALUE:AS:STRING```"
+            elif "adget" in command:
+                response = "Gets an image from areaDetector. For example:```adget 13SIM1:image1```"
+            else:
+                response = "The commands for epics_bot are caget and adget. For more information try 'help <command>'"
         return response
+
+    def _upload_image(self, channel, path, format='image/jpg'):
+        """
+        Upload an image to the specified channel.
+
+        Uses a POST rather than than the client API as it was easier to get it to work.
+
+        :param channel: the channel to post to
+        :param path: the full filepath for the image file
+        :param format: the image file format
+        """
+        f = {'file': (path, open(path, 'rb'), format, {'Expires': '0'})}
+        response = requests.post(url='https://slack.com/api/files.upload',
+                                 data={'token': self.bot_token, 'channels': channel, 'media': f},
+                                 headers={'Accept': 'application/json'}, files=f)
+        print response
 
     def send_response(self, channel, response):
         """
@@ -72,7 +109,7 @@ class EpicsBot(object):
         :param response: the response string
         """
         try:
-            slack_client.api_call("chat.postMessage", channel=channel,
+            self.slack.api_call("chat.postMessage", channel=channel,
                               text=response, as_user=True)
         except Exception as err:
             print('Could not send response to Slack: %s' % err)
@@ -101,20 +138,27 @@ class EpicsBot(object):
                         return output['text'].strip(), output['channel']
         return None, None
 
+    def start_bot(self):
+        """
+        Starts the bot running.
+        """
+        if self.slack.rtm_connect():
+            print("EpicsBot connected and running!")
+            # bot = EpicsBot()
+            while True:
+                try:
+                    command, channel = self.parse_slack_output(self.slack.rtm_read())
+                    if command and channel:
+                        res = self.handle_command(command, channel)
+                        if res is not None:
+                            self.send_response(channel, res)
+                    time.sleep(READ_WEBSOCKET_DELAY)
+                except Exception as err:
+                    print('There was an unhandled exception: %s' % err)
+        else:
+            print("Connection failed. Invalid Slack token or bot ID?")
+
 
 if __name__ == "__main__":
-    READ_WEBSOCKET_DELAY = 1 # 1 second delay between reading from firehose
-    if slack_client.rtm_connect():
-        print("EpicsBot connected and running!")
-        bot = EpicsBot()
-        while True:
-            try:
-                command, channel = bot.parse_slack_output(slack_client.rtm_read())
-                if command and channel:
-                    res = bot.handle_command(command, channel)
-                    bot.send_response(channel, res)
-                time.sleep(READ_WEBSOCKET_DELAY)
-            except Exception as err:
-                print('There was an unhandled exception: %s' % err)
-    else:
-        print("Connection failed. Invalid Slack token or bot ID?")
+    bot = EpicsBot()
+    bot.start_bot()

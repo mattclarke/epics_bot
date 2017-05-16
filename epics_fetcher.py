@@ -1,4 +1,4 @@
-from CaChannel import ca, CaChannel, CaChannelException
+from epics import PV
 import zlib
 
 
@@ -6,36 +6,31 @@ class PvNotFoundException(Exception):
     pass
 
 
-class EpicsFetcher(object):
-    def waveform_to_string(self, value):
-        output = ""
-        for i in value:
-            if i == 0:
-                break
-            output += str(unichr(i))
-        return output
+class PvGetException(Exception):
+    pass
 
+
+class EpicsFetcher(object):
     def dehex_and_decompress(self, value):
         return zlib.decompress(value.decode('hex'))
 
     def caget(self, name, as_str=False):
         try:
-            chan = CaChannel(name)
-            chan.searchw(name)
-            if as_str:
-                return self.caget_str(chan)
-            else:
-                return chan.getw()
-        except:
-            raise PvNotFoundException("Unable to find PV %s" % name)
+            pv = PV(name)
+            ans = pv.get(as_string=as_str)
+            if not pv.connected:
+                raise PvNotFoundException("Unable to find PV %s" % name)
+            return ans
+        except PvNotFoundException as err:
+            # PV not found
+            raise
+        except Exception as err:
+            # Something general went wrong
+            raise PvGetException("Unable to get value for PV %s: %s" % (name, err.message))
 
-    def caget_str(self, chan):
-        ftype = chan.field_type()
-        if ca.dbr_type_is_ENUM(ftype) or ca.dbr_type_is_STRING(ftype):
-            value = chan.getw(ca.DBR_STRING)
-        else:
-            value = chan.getw(ca.DBR_CHAR)
-        if isinstance(value, list):
-            return self.waveform_to_string(value)
-        else:
-            return str(value)
+    def get_ad_image_data(self, prefix):
+        raw = self.caget("%s:ArrayData" % prefix)
+        xsize = self.caget("%s:ArraySize0_RBV" % prefix)
+        ysize = self.caget("%s:ArraySize1_RBV" % prefix)
+        return raw, xsize, ysize
+
