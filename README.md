@@ -1,13 +1,13 @@
 # epics_bot
-The Slackbot for talking EPICS
+The Slackbot for talking EPICS.
 
-## How run it
+## How to run it
 
-Set environment variables for:
+Find your values for the following and put them in the appropriate place in startup.py
 
-* "BOT_ID"
-* "BOT_CHANNEL_ID"
-* "SLACK_BOT_TOKEN"
+* BOT_ID
+* BOT_CHANNEL_ID
+* SLACK_BOT_TOKEN
 
 These values can be obtain from Slack. The "SLACK_BOT_TOKEN" will be assigned when you create the bot via your team's Slack webpage.
 
@@ -25,7 +25,9 @@ if api_call.get('ok'):
             print user.get('id')
 ```
 
-Then run epicsbot.py like so:
+WARNING: keep your values safe, do not check them into git or display them on a public website.
+
+To run the bot type:
 ```
-python epicsbot.py
+python startup.py
 ```
