@@ -14,7 +14,7 @@ class ADConverter(object):
 
     def convert_to_jpg(self, data):
         path = "%sout.jpg" % self.dir
-        img = Image.frombuffer('RGBA', (data[1], data[2]), data[0], 'raw', 'RGBA', 0, 1)
+        img = Image.frombuffer('L', (data[1], data[2]), data[0], 'raw', 'L', 0, 1)
         img.save(path, "JPEG", quality=QUALITY)
         if img.width > MAX_SIZE or img.height > MAX_SIZE:
             self._resize_image(path)
